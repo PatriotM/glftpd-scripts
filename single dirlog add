@@ -1,0 +1,76 @@
+--- glupdate.c	2014-06-05 20:24:51.000000000 +0200
++++ glupdate.c	2021-05-27 23:05:46.165910484 +0200
+@@ -85,6 +85,8 @@
+ 	char *config_file = GLCONF;
+ 	struct ignore *ignore = START;
+ 	int skip;
++	int single_only = 0;
++	char *orig_release = NULL;
+
+
+ 	/* These entrys are always ingored. */
+@@ -94,7 +96,7 @@
+
+
+ 	/* Parse command line options */
+-	while((c = getopt(argc, argv, "hi:r:")) != EOF) {
++	while((c = getopt(argc, argv, "hi:r:s")) != EOF) {
+ 		switch(c) {
+ 			case 'h':
+ 				usage();
+@@ -104,6 +106,9 @@
+ 			case 'r':
+ 				config_file = strdup(optarg);
+ 				break;
++			case 's':
++				single_only = 1;
++				break;
+ 			default:
+ 				usage();
+ 			}
+@@ -124,6 +129,18 @@
+ 		nambuf[i] = '\0';
+
+
++	if (single_only) {
++		printf("[+] single update for %s\n", nambuf);
++		orig_release = strrchr(nambuf, '/');
++		if (!orig_release) {
++			printf("something is weird\n");
++			return -1;
++		}
++		*orig_release=0;
++		orig_release++;
++		printf("looking to update %s in %s\n", orig_release, nambuf);
++	}
++
+ 	dirf = opendir(nambuf);
+ 	if (dirf == NULL) {
+ 		printf ("Unable to read from directory: %s\n", nambuf);
+@@ -154,6 +171,13 @@
+ 		}
+ 		if (skip==1) continue;
+
++		if (single_only && orig_release) {
++			if (strcmp(dn->d_name, orig_release))
++				continue;
++			else
++				printf("looking at %s now...\n", orig_release);
++		}
++
+ 		snprintf(temppath, MAXPATHLEN, "%s/%s", nambuf, dn->d_name);
+ 		stat(temppath, &st);
+ 		if (S_ISDIR (st.st_mode)) {
+@@ -215,10 +239,11 @@
+ usage (void)
+ {
+ 	printf ("glftpd DIRLOG update utility v3.1\n\n");
+-        printf ("glupdate [-r /pathto/glftpd.conf] [-i ...] [-h] <full directory path>\n Options:\n"
++        printf ("glupdate [-r /pathto/glftpd.conf] [-i ...] [-h] [-s] <full directory path>\n Options:\n"
+                " -r /path/file : alternative path to config file\n"
+                " -i ...        : unlimited number of dirs to skip\n"
+                "                 \".\", \"..\" and \"groups\" are skipped by default\n"
++               " -s            : single update only, i.e. do not update the entire dirname of the dir\n"
+                " -h            : this screen\n");
+ 	exit (0);
+ }
